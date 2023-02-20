@@ -1,0 +1,28 @@
+---
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: install cilium repo
+      kubernetes.core.helm_repository:
+        name: cilium
+        repo_url: https://helm.cilium.io/
+
+    - name: install cilium chart
+      kubernetes.core.helm:
+        name: cilium
+        update_repo_cache: true
+        chart_ref: cilium/cilium
+        release_namespace: kube-system
+        wait: true
+        values:
+          l7Proxy: false
+          hubble:
+            relay:
+              enabled: true
+            ui:
+              enabled: true
+          encryption:
+            enabled: true
+            type: wireguard

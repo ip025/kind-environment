@@ -1,0 +1,28 @@
+---
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: install invoiceninja repo
+      kubernetes.core.helm_repository:
+        name: invoiceninja
+        repo_url: https://invoiceninja.github.io/dockerfiles
+
+    - name: install argocd chart
+      kubernetes.core.helm:
+        name: invoiceninja
+        update_repo_cache: true
+        chart_ref: invoiceninja/invoiceninja
+        create_namespace: true
+        release_namespace: invoiceninja
+        wait: true
+        values:
+          appKey: changeit
+          mariadb:
+            auth:
+              rootPassword: "123"
+              password: "123"
+            redis:
+              auth:
+                password: "123"
