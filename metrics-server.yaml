@@ -1,0 +1,26 @@
+---
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: metrics-server helm repo
+      kubernetes.core.helm_repository:
+        name: metrics-server
+        repo_url: https://kubernetes-sigs.github.io/metrics-server/
+
+    - name: install metrics-server helm chart
+      kubernetes.core.helm:
+        name: metrics-server
+        update_repo_cache: true
+        create_namespace: true
+        chart_ref: metrics-server/metrics-server
+        release_namespace: "kube-system"
+        wait: true
+        values:
+          defaultArgs:
+            - --cert-dir=/tmp
+            - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+            - --kubelet-use-node-status-port
+            - --metric-resolution=15s
+            - --kubelet-insecure-tls

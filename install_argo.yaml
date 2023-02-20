@@ -1,0 +1,23 @@
+---
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: install argo repo
+      kubernetes.core.helm_repository:
+        name: argo
+        repo_url: https://argoproj.github.io/argo-helm
+
+    - name: install argocd chart
+      kubernetes.core.helm:
+        name: argo
+        update_repo_cache: true
+        chart_ref: argo/argo-cd
+        create_namespace: true
+        release_namespace: argo
+        wait: true
+        values: 
+          configs:
+            secret:
+              argocdServerAdminPassword: $2a$10$on70cTUvutmg49MZj4ux/O2dOHfYzwiSIG8Dw7Kp8NkwDkBR9A0Uq # go ahead, decode it :)

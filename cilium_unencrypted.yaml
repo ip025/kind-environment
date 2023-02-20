@@ -1,0 +1,33 @@
+---
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: install cilium repo
+      kubernetes.core.helm_repository:
+        name: cilium
+        repo_url: https://helm.cilium.io/
+
+        #    - name: ipsec encryption secret
+        #shell: kubectl create -n kube-system secret generic cilium-ipsec-keys --from-literal=keys="3 rfc4106(gcm(aes)) $(echo $(dd if=/dev/urandom count=20 bs=1 2> /dev/null | xxd -p -c 64)) 128"
+        #environment:
+        #KUBECONFIG: /home/mk/Projects-Sync/kind/kind-kubeconfig.yalm
+
+    - name: install cilium chart
+      kubernetes.core.helm:
+        name: cilium
+        update_repo_cache: true
+        chart_ref: cilium/cilium
+        release_namespace: kube-system
+        wait: true
+        values:
+          #l7Proxy: false
+          hubble:
+            relay:
+              enabled: true
+            ui:
+              enabled: true
+          encryption:
+            enabled: false
+            type: wireguard

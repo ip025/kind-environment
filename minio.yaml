@@ -1,0 +1,22 @@
+---
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ns: minio
+  tasks:
+    - name: install grafana repo
+      kubernetes.core.helm_repository:
+        name: bitnami
+        repo_url: https://charts.bitnami.com/bitnami
+
+    - name: install minio chart
+      kubernetes.core.helm:
+        name: minio
+        update_repo_cache: true
+        create_namespace: true
+        chart_ref: bitnami/minio
+        release_namespace: "{{ns}}"
+        wait: true
+        values: {}

@@ -1,0 +1,114 @@
+---
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ns: observability
+  tasks:
+
+    - name: create {{ns}} namespace
+      kubernetes.core.k8s:
+        name: "{{ns}}"
+        api_version: v1
+        kind: Namespace
+        state: present
+        definition:
+          metadata:
+            labels:
+              prometheus: doscrape
+
+    - name: install grafana repo
+      kubernetes.core.helm_repository:
+        name: grafana
+        repo_url: https://grafana.github.io/helm-charts
+
+    - name: install prometheus helm chart
+      kubernetes.core.helm:
+        name: prometheus
+        update_repo_cache: true
+        create_namespace: true
+        chart_ref: prometheus-community/kube-prometheus-stack
+        release_namespace: "{{ns}}"
+        wait: true
+        values:
+          grafana:
+            enabled: false
+            namespaceOverride: "{{ns}}"
+            forceDeployDatasources: true
+            forceDeployDashboards: true
+            defaultDashboardsTimezone: Europe/Berlin
+          prometheus:
+            prometheusSpec:
+              additionalScrapeConfigs:
+                - job_name: "fritz-exporter"
+                  scrape_interval: 60s
+                  static_configs:
+                    - targets: ["fritzbox-exporter.observability.svc.cluster.local:8765"]
+
+          # prometheus:
+          #   prometheusSpec:
+          #     serviceMonitorNamespaceSelector:
+          #       prometheus: doscrape
+
+    - name: install loki chart
+      kubernetes.core.helm:
+        name: loki
+        update_repo_cache: true
+        create_namespace: true
+        chart_ref: grafana/loki-distributed
+        release_namespace: "{{ns}}"
+        wait: true
+        values_files:
+          - loki/config.yaml
+
+    - name: install promtail chart
+      kubernetes.core.helm:
+        name: promtail
+        update_repo_cache: true
+        create_namespace: true
+        chart_ref: grafana/promtail
+        release_namespace: "{{ns}}"
+        wait: true
+        values:
+          config:
+            clients:
+              - url: http://loki-loki-distributed-gateway.observability.svc.cluster.local/loki/api/v1/push
+
+    - name: install grafana chart
+      kubernetes.core.helm:
+        name: grafana
+        update_repo_cache: true
+        create_namespace: true
+        chart_ref: grafana/grafana
+        release_namespace: "{{ns}}"
+        wait: true
+        values:
+          datasources: 
+            datasources.yaml:
+              apiVersion: 1
+              datasources:
+              - name: Loki
+                type: loki
+                url: http://loki-loki-distributed-gateway.observability.svc.cluster.local/
+                # access: proxy
+                isDefault: true
+
+    - name: get grafana admin password
+      shell: 
+        cmd: "kubectl get secret --namespace {{ns}} grafana -o jsonpath='{.data.admin-password}'"
+      changed_when: false
+      register: grafana_admin_password
+
+    - name: get minio admin password
+      shell: 
+        cmd: "kubectl get secret --namespace minio minio -o jsonpath='{.data.root-password}'"
+      changed_when: false
+      register: minio_admin_password
+
+    - name: print grafana admin password
+      debug:
+        msg: [
+          "Grafana admin credentials: admin      {{ grafana_admin_password.stdout | b64decode }}",
+          "minio admin credentials:   admin      {{ minio_admin_password.stdout | b64decode }}"
+        ]
